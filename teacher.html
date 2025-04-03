@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель учителя | Школьная система</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/teacher.css">
+</head>
+<body>
+    <div class="teacher-dashboard">
+        <!-- Боковая панель -->
+        <aside class="sidebar">
+            <div class="user-profile">
+                <div class="avatar" id="userAvatar"></div>
+                <div class="user-name" id="userName"></div>
+                <div class="user-role" id="userRole"></div>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item active" data-section="grades">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-book-open"></i>
+                        <span>Журнал оценок</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="schedule">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>Расписание</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="students">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Мои классы</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-section="materials">
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-book"></i>
+                        <span>Учебные материалы</span>
+                    </a>
+                </li>
+            </ul>
+            
+            <button class="logout-btn" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Выйти</span>
+            </button>
+        </aside>
+        
+        <!-- Основное содержимое -->
+        <main class="main-content">
+            <div class="header">
+                <h1 class="page-title">
+                    <i class="fas fa-book-open"></i>
+                    <span>Журнал оценок</span>
+                </h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="exportBtn">
+                        <i class="fas fa-download"></i>
+                        <span>Экспорт оценок</span>
+                    </button>
+                    <button class="btn btn-secondary" id="printBtn">
+                        <i class="fas fa-print"></i>
+                        <span>Печать</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grades-container">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label class="filter-label">Класс</label>
+                        <select class="select" id="classSelect">
+                            <option value="" disabled selected>Выберите класс</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Предмет</label>
+                        <select class="select" id="subjectSelect">
+                            <option value="" disabled selected>Выберите предмет</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Период</label>
+                        <select class="select" id="periodSelect">
+                            <option value="current" selected>Текущая четверть</option>
+                            <option value="1">1 четверть</option>
+                            <option value="2">2 четверть</option>
+                            <option value="3">3 четверть</option>
+                            <option value="4">4 четверть</option>
+                            <option value="year">Годовая</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <div class="table-header">
+                        <div class="student-col">ФИО ученика</div>
+                        <div class="dates-row">
+                            <!-- Даты будут добавлены динамически -->
+                        </div>
+                        <div class="average-col">Средний балл</div>
+                    </div>
+                </div>
+                
+                <div class="grades-summary">
+                    <div class="summary-card">
+                        <div class="summary-title">Средний балл класса</div>
+                        <div class="summary-value" id="classAverage">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-title">Успеваемость</div>
+                        <div class="summary-value" id="performance">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-title">Качество знаний</div>
+                        <div class="summary-value" id="knowledgeQuality">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Секция расписания (скрыта по умолчанию) -->
+            <div class="schedule-container" id="scheduleSection" style="display: none;">
+                <div class="week-selector">
+                    <button class="btn btn-outline" id="prevWeekBtn">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="current-week" id="currentWeek"></div>
+                    <button class="btn btn-outline" id="nextWeekBtn">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <div class="schedule-table" id="scheduleTable">
+                    <!-- Расписание будет заполнено через JS -->
+                </div>
+            </div>
+            
+            <!-- Секция моих классов (скрыта по умолчанию) -->
+            <div class="classes-container" id="classesSection" style="display: none;">
+                <div class="classes-list" id="classesList">
+                    <!-- Список классов будет заполнен через JS -->
+                </div>
+            </div>
+            
+            <!-- Секция учебных материалов (скрыта по умолчанию) -->
+            <div class="materials-container" id="materialsSection" style="display: none;">
+                <div class="materials-header">
+                    <h2>Учебные материалы</h2>
+                    <button class="btn btn-primary" id="addMaterialBtn">
+                        <i class="fas fa-plus"></i>
+                        <span>Добавить материал</span>
+                    </button>
+                </div>
+                
+                <div class="materials-grid" id="materialsGrid">
+                    <!-- Учебные материалы будут здесь -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальные окна -->
+<!-- Модальное окно добавления оценки -->
+<div class="modal" id="addGradeModal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>Редактирование оценки</h3>
+        <form id="addGradeForm">
+            <div class="form-group">
+                <label for="gradeStudent">Ученик</label>
+                <input type="text" id="gradeStudent" readonly>
+            </div>
+            <div class="form-group">
+                <label for="gradeDate">Дата</label>
+                <input type="date" id="gradeDate" required>
+            </div>
+            <div class="form-group">
+                <label for="gradeValue">Оценка</label>
+                <select id="gradeValue" required>
+                    <option value="5">5 (Отлично)</option>
+                    <option value="4">4 (Хорошо)</option>
+                    <option value="3">3 (Удовлетворительно)</option>
+                    <option value="2">2 (Неудовлетворительно)</option>
+                    <option value="1">1 (Плохо)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="gradeComment">Комментарий</label>
+                <textarea id="gradeComment" rows="3"></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-danger" id="deleteGradeBtn">
+                    <i class="fas fa-trash"></i> Удалить оценку
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Сохранить
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+    
+    <!-- Модальное окно добавления учебного материала -->
+    <div class="modal" id="addMaterialModal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Добавить учебный материал</h3>
+            <form id="addMaterialForm">
+                <div class="form-group">
+                    <label for="materialTitle">Название</label>
+                    <input type="text" id="materialTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="materialSubject">Предмет</label>
+                    <select id="materialSubject" required>
+                        <!-- Опции будут добавлены через JS -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="materialClass">Класс</label>
+                    <select id="materialClass" required>
+                        <!-- Опции будут добавлены через JS -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="materialFile">Файл материала</label>
+                    <input type="file" id="materialFile" required>
+                </div>
+                <div class="form-group">
+                    <label for="materialDescription">Описание</label>
+                    <textarea id="materialDescription" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Сохранить материал
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/teacher.js"></script>
+    <script src="js/phone-validation.js"></script>
+</body>
+</html>
