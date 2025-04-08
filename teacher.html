@@ -13,9 +13,9 @@
         <!-- Боковая панель -->
         <aside class="sidebar">
             <div class="user-profile">
-                <div class="avatar" id="userAvatar"></div>
-                <div class="user-name" id="userName"></div>
-                <div class="user-role" id="userRole"></div>
+                <div class="avatar" id="userAvatar">АД</div>
+                <div class="user-name" id="userName">Имя Фамилия</div>
+                <div class="user-role" id="userRole">Учитель</div>
             </div>
             
             <ul class="nav-menu">
@@ -102,11 +102,10 @@
                 <div class="table-container">
                     <div class="table-header">
                         <div class="student-col">ФИО ученика</div>
-                        <div class="dates-row">
-                            <!-- Даты будут добавлены динамически -->
-                        </div>
+                        <div class="dates-row" id="datesRow"></div>
                         <div class="average-col">Средний балл</div>
                     </div>
+                    <div class="table-body" id="gradesTableBody"></div>
                 </div>
                 
                 <div class="grades-summary">
@@ -126,12 +125,12 @@
             </div>
             
             <!-- Секция расписания (скрыта по умолчанию) -->
-            <div class="schedule-container" id="scheduleSection" style="display: none;">
+            <div class="schedule-container" id="scheduleSection">
                 <div class="week-selector">
                     <button class="btn btn-outline" id="prevWeekBtn">
                         <i class="fas fa-chevron-left"></i>
                     </button>
-                    <div class="current-week" id="currentWeek"></div>
+                    <div class="current-week" id="currentWeek">Текущая неделя</div>
                     <button class="btn btn-outline" id="nextWeekBtn">
                         <i class="fas fa-chevron-right"></i>
                     </button>
@@ -143,103 +142,162 @@
             </div>
             
             <!-- Секция моих классов (скрыта по умолчанию) -->
-            <div class="classes-container" id="classesSection" style="display: none;">
+            <div class="classes-container" id="classesSection">
                 <div class="classes-list" id="classesList">
                     <!-- Список классов будет заполнен через JS -->
                 </div>
             </div>
             
             <!-- Секция учебных материалов (скрыта по умолчанию) -->
-            <div class="materials-container" id="materialsSection" style="display: none;">
+            <div class="materials-container" id="materialsSection">
                 <div class="materials-header">
-                    <h2>Учебные материалы</h2>
+                    <h2><i class="fas fa-book"></i> Учебные материалы</h2>
                     <button class="btn btn-primary" id="addMaterialBtn">
-                        <i class="fas fa-plus"></i>
-                        <span>Добавить материал</span>
+                        <i class="fas fa-plus"></i> <span>Добавить материал</span>
                     </button>
                 </div>
                 
-                <div class="materials-grid" id="materialsGrid">
-                    <!-- Учебные материалы будут здесь -->
+                <div class="materials-filters">
+                    <div class="filter-group">
+                        <label class="filter-label">Класс</label>
+                        <select class="select" id="materialsClassFilter">
+                            <option value="">Все классы</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Предмет</label>
+                        <select class="select" id="materialsSubjectFilter">
+                            <option value="">Все предметы</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Дата</label>
+                        <input type="date" id="materialsDateFilter" class="select">
+                    </div>
+                </div>
+                
+                <div class="materials-table-container">
+                    <table class="materials-table">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Класс</th>
+                                <th>Предмет</th>
+                                <th>Тема урока</th>
+                                <th>Домашнее задание</th>
+                                <th>Пояснение</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="materialsTableBody">
+                            <!-- Данные будут заполняться через JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>
     </div>
 
     <!-- Модальные окна -->
-<!-- Модальное окно добавления оценки -->
-<div class="modal" id="addGradeModal">
-    <div class="modal-content">
-        <span class="close-modal">&times;</span>
-        <h3>Редактирование оценки</h3>
-        <form id="addGradeForm">
-            <div class="form-group">
-                <label for="gradeStudent">Ученик</label>
-                <input type="text" id="gradeStudent" readonly>
-            </div>
-            <div class="form-group">
-                <label for="gradeDate">Дата</label>
-                <input type="date" id="gradeDate" required>
-            </div>
-            <div class="form-group">
-                <label for="gradeValue">Оценка</label>
-                <select id="gradeValue" required>
-                    <option value="5">5 (Отлично)</option>
-                    <option value="4">4 (Хорошо)</option>
-                    <option value="3">3 (Удовлетворительно)</option>
-                    <option value="2">2 (Неудовлетворительно)</option>
-                    <option value="1">1 (Плохо)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="gradeComment">Комментарий</label>
-                <textarea id="gradeComment" rows="3"></textarea>
-            </div>
-            <div class="form-actions">
-                <button type="button" class="btn btn-danger" id="deleteGradeBtn">
-                    <i class="fas fa-trash"></i> Удалить оценку
-                </button>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Сохранить
-                </button>
-            </div>
-        </form>
+    <!-- Модальное окно добавления оценки -->
+    <div class="modal" id="addGradeModal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Редактирование оценки</h3>
+            <form id="addGradeForm">
+                <div class="form-group">
+                    <label for="gradeStudent">Ученик</label>
+                    <input type="text" id="gradeStudent" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="gradeDate">Дата</label>
+                    <input type="date" id="gradeDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="gradeValue">Оценка</label>
+                    <select id="gradeValue" required>
+                        <option value="5">5 (Отлично)</option>
+                        <option value="4">4 (Хорошо)</option>
+                        <option value="3">3 (Удовлетворительно)</option>
+                        <option value="2">2 (Неудовлетворительно)</option>
+                        <option value="1">1 (Плохо)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="gradeComment">Комментарий</label>
+                    <textarea id="gradeComment" rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-danger" id="deleteGradeBtn">
+                        <i class="fas fa-trash"></i> Удалить оценку
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
     
     <!-- Модальное окно добавления учебного материала -->
     <div class="modal" id="addMaterialModal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>
-            <h3>Добавить учебный материал</h3>
+            <h3 id="materialModalTitle">Добавить учебный материал</h3>  <!-- Added this line -->
             <form id="addMaterialForm">
-                <div class="form-group">
-                    <label for="materialTitle">Название</label>
-                    <input type="text" id="materialTitle" required>
+                <input type="hidden" id="materialId">  <!-- Added this line -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="materialDate" class="required">Дата урока</label>
+                        <input type="date" id="materialDate" name="materialDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="materialClass" class="required">Класс</label>
+                        <select id="materialClass" name="materialClass" required>
+                            <!-- Опции будут добавлены через JavaScript -->
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="materialSubject">Предмет</label>
-                    <select id="materialSubject" required>
-                        <!-- Опции будут добавлены через JS -->
-                    </select>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="materialSubject" class="required">Предмет</label>
+                        <select id="materialSubject" name="materialSubject" required>
+                            <!-- Опции будут добавлены через JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="materialTopic" class="required">Тема урока</label>
+                        <input type="text" id="materialTopic" name="materialTopic" required>
+                    </div>
                 </div>
+                
                 <div class="form-group">
-                    <label for="materialClass">Класс</label>
-                    <select id="materialClass" required>
-                        <!-- Опции будут добавлены через JS -->
-                    </select>
+                    <label for="materialHomework">Домашнее задание</label>
+                    <textarea id="materialHomework" name="materialHomework" rows="3"></textarea>
                 </div>
+                
                 <div class="form-group">
-                    <label for="materialFile">Файл материала</label>
-                    <input type="file" id="materialFile" required>
+                    <label for="materialNotes">Пояснение/Примечания</label>
+                    <textarea id="materialNotes" name="materialNotes" rows="3"></textarea>
                 </div>
+                
                 <div class="form-group">
-                    <label for="materialDescription">Описание</label>
-                    <textarea id="materialDescription" rows="3"></textarea>
+                    <label for="materialFile">Прикрепить файл</label>
+                    <input type="file" id="materialFile" name="materialFile">
+                    <div id="materialFilePreview" style="margin-top: 10px;"></div>
                 </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Сохранить материал
-                </button>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" id="cancelMaterialBtn">
+                        Отмена
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Сохранить
+                    </button>
+                </div>
             </form>
         </div>
     </div>
