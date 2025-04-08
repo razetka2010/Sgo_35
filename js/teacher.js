@@ -1,44 +1,81 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Основные переменные
+    // Подключаем модуль AdminCore
+    const AdminCore = (function() {
+        return window.AdminCore || {};
+    })();
+
+    // Основные переменные приложения
     let currentClass = null;
     let currentSubject = null;
     let currentPeriod = 'current';
     let gradesData = {};
     let scheduleData = {};
     let materialsData = [];
-    
-    // DOM элементы
-    const userAvatar = document.getElementById('userAvatar');
-    const userName = document.getElementById('userName');
-    const userRole = document.getElementById('userRole');
-    const classSelect = document.getElementById('classSelect');
-    const subjectSelect = document.getElementById('subjectSelect');
-    const periodSelect = document.getElementById('periodSelect');
-    const gradesTableBody = document.getElementById('gradesTableBody');
-    const datesRow = document.querySelector('.dates-row');
-    const classAverageEl = document.getElementById('classAverage');
-    const performanceEl = document.getElementById('performance');
-    const knowledgeQualityEl = document.getElementById('knowledgeQuality');
-    const scheduleSection = document.getElementById('scheduleSection');
-    const classesSection = document.getElementById('classesSection');
-    const materialsSection = document.getElementById('materialsSection');
-    const materialsGrid = document.getElementById('materialsGrid');
-    const addGradeModal = document.getElementById('addGradeModal');
-    const addGradeForm = document.getElementById('addGradeForm');
-    const deleteGradeBtn = document.getElementById('deleteGradeBtn');
-    
+    let currentMaterial = null;
+
+    // Проверка и получение элементов DOM
+    function getElementByIdOrError(id) {
+        const element = document.getElementById(id);
+        if (!element) {
+            console.warn(`Элемент с ID "${id}" не найден`);
+            return document.createElement('div'); // Возвращаем пустой div вместо ошибки
+        }
+        return element;
+    }
+
+    // Получаем элементы DOM с проверкой
+    const elements = {
+        userAvatar: getElementByIdOrError('userAvatar'),
+        userName: getElementByIdOrError('userName'),
+        userRole: getElementByIdOrError('userRole'),
+        classSelect: getElementByIdOrError('classSelect'),
+        subjectSelect: getElementByIdOrError('subjectSelect'),
+        periodSelect: getElementByIdOrError('periodSelect'),
+        gradesTableBody: getElementByIdOrError('gradesTableBody'),
+        datesRow: document.querySelector('.dates-row'),
+        classAverageEl: getElementByIdOrError('classAverage'),
+        performanceEl: getElementByIdOrError('performance'),
+        knowledgeQualityEl: getElementByIdOrError('knowledgeQuality'),
+        scheduleSection: getElementByIdOrError('scheduleSection'),
+        classesSection: getElementByIdOrError('classesSection'),
+        materialsSection: getElementByIdOrError('materialsSection'),
+        addGradeModal: getElementByIdOrError('addGradeModal'),
+        addGradeForm: getElementByIdOrError('addGradeForm'),
+        deleteGradeBtn: getElementByIdOrError('deleteGradeBtn'),
+        exportBtn: getElementByIdOrError('exportBtn'),
+        printBtn: getElementByIdOrError('printBtn'),
+        addMaterialBtn: getElementByIdOrError('addMaterialBtn'),
+        materialsTableBody: getElementByIdOrError('materialsTableBody'),
+        logoutBtn: getElementByIdOrError('logoutBtn'),
+        materialsClassFilter: getElementByIdOrError('materialsClassFilter'),
+        materialsSubjectFilter: getElementByIdOrError('materialsSubjectFilter'),
+        materialsDateFilter: getElementByIdOrError('materialsDateFilter'),
+        addMaterialModal: getElementByIdOrError('addMaterialModal'),
+        addMaterialForm: getElementByIdOrError('addMaterialForm'),
+        cancelMaterialBtn: getElementByIdOrError('cancelMaterialBtn'),
+        materialModalTitle: getElementByIdOrError('materialModalTitle'),
+        materialId: getElementByIdOrError('materialId'),
+        materialDate: getElementByIdOrError('materialDate'),
+        materialClass: getElementByIdOrError('materialClass'),
+        materialSubject: getElementByIdOrError('materialSubject'),
+        materialTopic: getElementByIdOrError('materialTopic'),
+        materialHomework: getElementByIdOrError('materialHomework'),
+        materialNotes: getElementByIdOrError('materialNotes'),
+        materialFile: getElementByIdOrError('materialFile'),
+        materialFilePreview: getElementByIdOrError('materialFilePreview')
+    };
+
     // Инициализация приложения
-    initApp();
-    
     function initApp() {
-        checkAuth();
+        if (!checkAuth()) return;
         initUserData();
         initSelects();
         initEventListeners();
         loadInitialData();
+        initMaterialsSection();
     }
-    
-    // Проверка авторизации
+
+    // Проверка авторизации пользователя
     function checkAuth() {
         const authData = JSON.parse(localStorage.getItem('auth')) || {};
         if (!authData.isTeacher && !authData.isAdmin) {
@@ -48,65 +85,61 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return true;
     }
-    
+
     // Загрузка данных пользователя
     function initUserData() {
         const authData = JSON.parse(localStorage.getItem('auth')) || {};
         
         if (authData.fullName) {
             // Установка аватара (инициалы)
-            const initials = authData.fullName.split(' ')
-                .filter(word => word.length > 0)
-                .map(word => word[0])
-                .join('')
-                .toUpperCase()
-                .substring(0, 2);
-            userAvatar.textContent = initials;
+            const nameParts = authData.fullName.split(' ').filter(part => part.length > 0);
+            const initials = nameParts.map(part => part[0]).join('').toUpperCase().substring(0, 2);
+            elements.userAvatar.textContent = initials;
             
             // Установка имени и роли
-            userName.textContent = authData.fullName;
-            userRole.textContent = authData.isAdmin ? 'Администратор' : 'Учитель';
+            elements.userName.textContent = authData.fullName;
+            elements.userRole.textContent = authData.isAdmin ? 'Администратор' : 'Учитель';
         }
     }
-    
+
     // Инициализация выпадающих списков
     function initSelects() {
+        // Очищаем существующие опции
+        elements.classSelect.innerHTML = '<option value="" disabled selected>Выберите класс</option>';
+        elements.subjectSelect.innerHTML = '<option value="" disabled selected>Выберите предмет</option>';
+
         // Загрузка классов
         const classes = JSON.parse(localStorage.getItem('admin_classes')) || [];
-        classes.forEach(cls => {
+        classes.forEach(classItem => {
             const option = document.createElement('option');
-            option.value = cls.id;
-            option.textContent = cls.name;
-            classSelect.appendChild(option);
+            option.value = classItem.id;
+            option.textContent = classItem.name;
+            elements.classSelect.appendChild(option);
         });
         
         // Загрузка предметов
-        const subjects = [
-            'Русский язык', 'Математика', 'Литература', 'Иностранный язык',
+        const defaultSubjects = [
+            'Математика', 'Русский язык', 'Литература', 'Иностранный язык',
             'История', 'Обществознание', 'География', 'Биология',
             'Физика', 'Химия', 'Информатика', 'Физкультура',
             'Технология', 'ИЗО', 'Музыка', 'ОБЖ'
-        ].sort((a, b) => a.localeCompare(b, 'ru'));
+        ];
         
-        subjects.forEach(subj => {
+        const subjects = AdminCore.getSubjects ? 
+            AdminCore.getSubjects().sort((a, b) => a.localeCompare(b, 'ru')) : 
+            defaultSubjects;
+        
+        subjects.forEach(subject => {
             const option = document.createElement('option');
-            option.value = subj.toLowerCase().replace(/\s+/g, '_');
-            option.textContent = subj;
-            subjectSelect.appendChild(option);
+            option.value = subject.toLowerCase().replace(/\s+/g, '_');
+            option.textContent = subject;
+            elements.subjectSelect.appendChild(option);
         });
     }
-    
+
     // Инициализация обработчиков событий
     function initEventListeners() {
-        // Навигация
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const section = this.getAttribute('data-section');
-                switchSection(section);
-            });
-        });
-        
-        // Выход из системы
+        // Навигация по разделам
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', function() {
                 const section = this.getAttribute('data-section');
@@ -115,226 +148,118 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Фильтры журнала
-        classSelect.addEventListener('change', function() {
+        elements.classSelect.addEventListener('change', function() {
             currentClass = this.value;
-            localStorage.setItem('teacher_lastClass', currentClass);
-            loadClassData();
+            if (currentClass) {
+                localStorage.setItem('teacher_lastClass', currentClass);
+                loadClassData();
+            }
         });
         
-        subjectSelect.addEventListener('change', function() {
+        elements.subjectSelect.addEventListener('change', function() {
             currentSubject = this.value;
-            loadGrades();
+            if (currentClass && currentSubject) {
+                loadGrades();
+            }
         });
         
-        periodSelect.addEventListener('change', function() {
+        elements.periodSelect.addEventListener('change', function() {
             currentPeriod = this.value;
-            loadGrades();
+            if (currentClass && currentSubject) {
+                loadGrades();
+            }
         });
         
-        document.getElementById('exportBtn').addEventListener('click', exportGrades);
-        document.getElementById('printBtn').addEventListener('click', printGrades);
+        // Кнопки действий
+        elements.exportBtn.addEventListener('click', exportGrades);
+        elements.printBtn.addEventListener('click', printGrades);
+        elements.logoutBtn.addEventListener('click', logout);
         
         // Управление оценками
-        gradesTableBody.addEventListener('click', function(e) {
-            const gradeCell = e.target.closest('.grade-cell');
+        elements.gradesTableBody.addEventListener('click', function(event) {
+            const gradeCell = event.target.closest('.grade-cell');
             if (!gradeCell) return;
             
-            if (e.ctrlKey) {
+            if (event.ctrlKey) {
                 deleteGrade(gradeCell);
             } else {
                 openGradeModal(gradeCell);
             }
         });
         
-        // Учебные материалы
-        document.getElementById('addMaterialBtn').addEventListener('click', openAddMaterialModal);
-        
-        // Модальное окно оценок
-        if (addGradeForm) {
-            addGradeForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                saveGrade();
-            });
-        }
-        
-        if (deleteGradeBtn) {
-            deleteGradeBtn.addEventListener('click', deleteGradeFromModal);
-        }
-        
-        // Закрытие модальных окон
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', function() {
-                this.closest('.modal').style.display = 'none';
-            });
+        // Модальное окно оценки
+        elements.addGradeForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            saveGrade();
         });
         
-        window.addEventListener('click', function(e) {
-            if (e.target.classList.contains('modal')) {
-                e.target.style.display = 'none';
-            }
-        });
-        
-        const activeSection = document.querySelector('.nav-item.active').getAttribute('data-section');
-            switchSection(activeSection);
+        elements.deleteGradeBtn.addEventListener('click', deleteGradeFromModal);
     }
-    
+
+    // Загрузка начальных данных
     function loadInitialData() {
         const lastClass = localStorage.getItem('teacher_lastClass');
         if (lastClass) {
-            classSelect.value = lastClass;
+            elements.classSelect.value = lastClass;
             currentClass = lastClass;
             loadClassData();
         }
         
         // Загрузка расписания
         loadSchedule();
-        
-        // Загрузка учебных материалов
-        loadMaterials();
-        
-        // Загрузка классов учителя
-        loadTeacherClasses();
-    }
-    
-    function loadTeacherClasses() {
-        const authData = JSON.parse(localStorage.getItem('auth')) || {};
-        const classes = JSON.parse(localStorage.getItem('admin_classes')) || [];
-        const users = JSON.parse(localStorage.getItem('admin_users')) || [];
-        
-        // Находим классы, где текущий учитель является классным руководителем
-        const teacherClasses = classes.filter(cls => {
-            return cls.teacherId && users.some(u => u.id == cls.teacherId && u.username === authData.username);
-        });
-        
-        renderTeacherClasses(teacherClasses, users);
     }
 
-    function renderTeacherClasses(classes, users) {
-        const classesList = document.getElementById('classesList');
-        if (!classesList) return;
-        
-        if (classes.length === 0) {
-            classesList.innerHTML = '<div class="no-data">Вам не назначены классы</div>';
-            return;
-        }
-        
-        classesList.innerHTML = classes.map(cls => {
-            // Находим учеников класса
-            const students = cls.students 
-                ? cls.students.map(studentId => 
-                    users.find(u => u.id == studentId && u.type === 'student'))
-                    .filter(Boolean)
-                : [];
-            
-            return `
-                <div class="class-card">
-                    <h3>${cls.name}</h3>
-                    <div class="students-list">
-                        ${students.length > 0 ? `
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>ФИО</th>
-                                        <th>Логин</th>
-                                        <th>Телефон</th>
-                                        <th>Родители</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${students.map(student => `
-                                        <tr>
-                                            <td>${student.lastName} ${student.firstName} ${student.middleName || ''}</td>
-                                            <td>${student.username}</td>
-                                            <td>${student.phone || 'не указан'}</td>
-                                            <td>
-                                                ${formatParentsInfo(student.parents)}
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        ` : '<p>В классе нет учеников</p>'}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-    
-    // Вспомогательная функция для форматирования информации о родителях
-    function formatParentsInfo(parents) {
-        if (!parents) return 'не указаны';
-        
-        try {
-            const parentsData = parents.split(',');
-            let result = [];
-            
-            parentsData.forEach(p => {
-                const [type, name] = p.split(':');
-                if (type && name) {
-                    result.push(`${type === 'mother' ? 'Мать' : 'Отец'}: ${name}`);
-                }
-            });
-            
-            return result.join('<br>');
-        } catch (e) {
-            return parents;
-        }
-    }
-    
     // Переключение между разделами
     function switchSection(section) {
-        // Обновляем заголовок страницы в зависимости от выбранного раздела
-        const pageTitle = document.querySelector('.page-title');
-        
         // Скрываем все разделы
         document.querySelector('.grades-container').style.display = 'none';
-        scheduleSection.style.display = 'none';
-        classesSection.style.display = 'none';
-        materialsSection.style.display = 'none';
+        elements.scheduleSection.style.display = 'none';
+        elements.classesSection.style.display = 'none';
+        elements.materialsSection.style.display = 'none';
         
-        // Показываем выбранный раздел и обновляем заголовок
+        // Показываем выбранный раздел
         switch(section) {
             case 'grades':
                 document.querySelector('.grades-container').style.display = 'block';
-                pageTitle.innerHTML = '<i class="fas fa-book-open"></i><span>Журнал оценок</span>';
+                updatePageTitle('<i class="fas fa-book-open"></i><span>Журнал оценок</span>');
                 break;
             case 'schedule':
-                scheduleSection.style.display = 'block';
-                pageTitle.innerHTML = '<i class="fas fa-calendar-alt"></i><span>Расписание</span>';
+                elements.scheduleSection.style.display = 'block';
+                updatePageTitle('<i class="fas fa-calendar-alt"></i><span>Расписание</span>');
                 break;
             case 'students':
-                classesSection.style.display = 'block';
-                pageTitle.innerHTML = '<i class="fas fa-users"></i><span>Мои классы</span>';
-                // Загружаем данные классов при открытии раздела
+                elements.classesSection.style.display = 'block';
+                updatePageTitle('<i class="fas fa-users"></i><span>Мои классы</span>');
                 loadTeacherClasses();
                 break;
             case 'materials':
-                materialsSection.style.display = 'block';
-                pageTitle.innerHTML = '<i class="fas fa-book"></i><span>Учебные материалы</span>';
+                elements.materialsSection.style.display = 'block';
+                updatePageTitle('<i class="fas fa-book"></i><span>Учебные материалы</span>');
                 break;
         }
         
         // Обновляем активный пункт меню
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
+            if (item.getAttribute('data-section') === section) {
+                item.classList.add('active');
+            }
         });
-        document.querySelector(`.nav-item[data-section="${section}"]`).classList.add('active');
     }
-    
-    // Выход из системы
-    function logout() {
-        if (confirm('Вы уверены, что хотите выйти из системы?')) {
-            localStorage.removeItem('auth');
-            window.location.href = 'index.html';
+
+    function updatePageTitle(html) {
+        const titleElement = document.querySelector('.page-title');
+        if (titleElement) {
+            titleElement.innerHTML = html;
         }
     }
-    
+
     // Загрузка данных класса
     function loadClassData() {
         if (!currentClass) return;
         
         const classes = JSON.parse(localStorage.getItem('admin_classes')) || [];
-        const selectedClass = classes.find(c => c.id === currentClass);
+        const selectedClass = classes.find(classItem => classItem.id === currentClass);
         
         if (!selectedClass) {
             alert('Класс не найден');
@@ -343,35 +268,30 @@ document.addEventListener('DOMContentLoaded', function() {
         
         loadStudents(selectedClass);
     }
-    
+
     // Загрузка списка учеников
     function loadStudents(classData) {
         const users = JSON.parse(localStorage.getItem('admin_users')) || [];
         const students = classData.students 
             ? classData.students.map(studentId => 
-                users.find(u => u.id == studentId && u.type === 'student'))
+                users.find(user => user.id == studentId && user.type === 'student'))
                 .filter(Boolean)
             : [];
         
         renderStudentsTable(students);
     }
-    
-    // Отображение таблицы учеников
+
+    // Отображение таблицы учеников с оценками
     function renderStudentsTable(students) {
-        gradesTableBody.innerHTML = '';
-        datesRow.innerHTML = '';
+        // Очищаем таблицу
+        elements.gradesTableBody.innerHTML = '';
+        elements.datesRow.innerHTML = '';
         
-        // Добавляем заголовок для средней оценки
-        const averageHeader = document.createElement('div');
-        averageHeader.className = 'average-col';
-        averageHeader.textContent = 'Средний балл';
-        document.querySelector('.table-header').appendChild(averageHeader);
-    
         if (students.length === 0) {
-            gradesTableBody.innerHTML = '<div class="no-data">В классе нет учеников</div>';
+            elements.gradesTableBody.innerHTML = '<div class="no-data">В классе нет учеников</div>';
             return;
         }
-    
+        
         // Генерация дат (последние 14 дней)
         const dates = [];
         const today = new Date();
@@ -380,12 +300,15 @@ document.addEventListener('DOMContentLoaded', function() {
             date.setDate(today.getDate() - i);
             dates.push(date);
             
+            // Добавляем дату в заголовок
             const dateEl = document.createElement('div');
             dateEl.className = 'date-col';
             dateEl.textContent = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-            datesRow.appendChild(dateEl);
+            dateEl.dataset.date = date.toISOString().split('T')[0];
+            elements.datesRow.appendChild(dateEl);
         }
-    
+        
+        // Добавляем учеников в таблицу
         students.forEach(student => {
             const studentRow = document.createElement('div');
             studentRow.className = 'student-row';
@@ -395,9 +318,10 @@ document.addEventListener('DOMContentLoaded', function() {
             nameCell.className = 'student-cell';
             nameCell.textContent = `${student.lastName} ${student.firstName[0]}.${student.middleName ? student.middleName[0] + '.' : ''}`;
             studentRow.appendChild(nameCell);
-    
+            
             // Собираем все оценки ученика для расчета среднего
-            let studentGrades = [];
+            let sumGrades = 0;
+            let countGrades = 0;
             
             // Ячейки с оценками
             dates.forEach(date => {
@@ -407,6 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 gradeCell.dataset.studentId = student.id;
                 gradeCell.dataset.date = dateStr;
                 
+                // Проверяем наличие оценки
                 const grade = getGradeForStudent(student.id, dateStr);
                 if (grade) {
                     gradeCell.textContent = grade.value;
@@ -414,21 +339,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (grade.comment) {
                         gradeCell.title = grade.comment;
                     }
-                    studentGrades.push(parseInt(grade.value));
+                    sumGrades += parseInt(grade.value);
+                    countGrades++;
                 }
                 
                 studentRow.appendChild(gradeCell);
             });
-    
+            
             // Ячейка со средним баллом
             const averageCell = document.createElement('div');
             averageCell.className = 'average-cell';
             
-            if (studentGrades.length > 0) {
-                const average = calculateStudentAverage(studentGrades);
+            if (countGrades > 0) {
+                const average = sumGrades / countGrades;
                 averageCell.textContent = average.toFixed(2);
                 
-                // Добавляем цвет в зависимости от среднего балла
+                // Цвет в зависимости от среднего балла
                 if (average >= 4.5) {
                     averageCell.style.color = '#28a745'; // Зеленый
                 } else if (average >= 3.5) {
@@ -443,19 +369,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             studentRow.appendChild(averageCell);
-            gradesTableBody.appendChild(studentRow);
+            elements.gradesTableBody.appendChild(studentRow);
         });
-    
+        
+        // Расчет статистики класса
         calculateStatistics(students);
     }
-    
-    // Новая функция для расчета среднего балла ученика
-    function calculateStudentAverage(grades) {
-        if (!grades || grades.length === 0) return 0;
-        const sum = grades.reduce((total, grade) => total + grade, 0);
-        return sum / grades.length;
-    }
-    
+
     // Получение оценки для ученика на определенную дату
     function getGradeForStudent(studentId, dateStr) {
         if (!gradesData[currentClass] || 
@@ -465,39 +385,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         return gradesData[currentClass][currentSubject][studentId].find(
-            g => g.date === dateStr
+            grade => grade.date === dateStr
         );
     }
-    
+
     // Загрузка оценок
     function loadGrades() {
         if (!currentClass || !currentSubject) {
             return;
         }
         
-        // Здесь должна быть загрузка оценок с сервера
-        // Для примера используем localStorage
-        const allGrades = JSON.parse(localStorage.getItem('teacher_grades')) || {};
-        
-        if (allGrades[currentClass] && allGrades[currentClass][currentSubject]) {
-            gradesData[currentClass][currentSubject] = allGrades[currentClass][currentSubject];
-        } else {
-            gradesData[currentClass] = gradesData[currentClass] || {};
-            gradesData[currentClass][currentSubject] = {};
+        try {
+            const savedGrades = localStorage.getItem('teacher_grades');
+            if (savedGrades) {
+                gradesData = JSON.parse(savedGrades);
+            } else {
+                gradesData = {};
+            }
+            
+            // Инициализация структуры данных
+            if (!gradesData[currentClass]) gradesData[currentClass] = {};
+            if (!gradesData[currentClass][currentSubject]) {
+                gradesData[currentClass][currentSubject] = {};
+            }
+            
+            // Обновление таблицы
+            const selectedClass = JSON.parse(localStorage.getItem('admin_classes'))
+                .find(classItem => classItem.id === currentClass);
+            if (selectedClass) {
+                loadStudents(selectedClass);
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки оценок:', error);
+            gradesData = {};
         }
-        
-        // Обновление таблицы
-        const selectedClass = JSON.parse(localStorage.getItem('admin_classes'))
-            .find(c => c.id === currentClass);
-        loadStudents(selectedClass);
     }
-    
-    // Расчет статистики
+
+    // Расчет статистики класса
     function calculateStatistics(students) {
         if (students.length === 0) {
-            classAverageEl.textContent = '-';
-            performanceEl.textContent = '-';
-            knowledgeQualityEl.textContent = '-';
+            elements.classAverageEl.textContent = '-';
+            elements.performanceEl.textContent = '-';
+            elements.knowledgeQualityEl.textContent = '-';
             return;
         }
         
@@ -505,9 +434,10 @@ document.addEventListener('DOMContentLoaded', function() {
         let count = 0;
         let goodGrades = 0;
         let studentAverages = [];
-    
+        
         students.forEach(student => {
-            if (gradesData[currentClass] && gradesData[currentClass][currentSubject] && 
+            if (gradesData[currentClass] && 
+                gradesData[currentClass][currentSubject] && 
                 gradesData[currentClass][currentSubject][student.id]) {
                 
                 const studentGrades = gradesData[currentClass][currentSubject][student.id];
@@ -531,16 +461,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const performance = ((count / (students.length * 14)) * 100).toFixed(0);
             const quality = ((goodGrades / count) * 100).toFixed(0);
             
-            classAverageEl.textContent = average;
-            performanceEl.textContent = `${performance}%`;
-            knowledgeQualityEl.textContent = `${quality}%`;
+            elements.classAverageEl.textContent = average;
+            elements.performanceEl.textContent = `${performance}%`;
+            elements.knowledgeQualityEl.textContent = `${quality}%`;
         } else {
-            classAverageEl.textContent = '-';
-            performanceEl.textContent = '-';
-            knowledgeQualityEl.textContent = '-';
+            elements.classAverageEl.textContent = '-';
+            elements.performanceEl.textContent = '-';
+            elements.knowledgeQualityEl.textContent = '-';
         }
     }
-    
+
     // Открытие модального окна для оценки
     function openGradeModal(gradeCell) {
         const studentId = gradeCell.dataset.studentId;
@@ -548,14 +478,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Заполнение данных
         const users = JSON.parse(localStorage.getItem('admin_users')) || [];
-        const student = users.find(u => u.id == studentId);
+        const student = users.find(user => user.id == studentId);
         
         document.getElementById('gradeStudent').value = 
             `${student.lastName} ${student.firstName}`;
         document.getElementById('gradeDate').value = date;
         
         // Если оценка уже есть, заполняем форму
-        const existingGrade = getGradeForStudent(studentId, new Date(date));
+        const existingGrade = getGradeForStudent(studentId, date);
         if (existingGrade) {
             document.getElementById('gradeValue').value = existingGrade.value;
             document.getElementById('gradeComment').value = existingGrade.comment || '';
@@ -565,115 +495,64 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Сохраняем ID студента и дату в форме
-        addGradeForm.dataset.studentId = studentId;
-        addGradeForm.dataset.date = date;
+        elements.addGradeForm.dataset.studentId = studentId;
+        elements.addGradeForm.dataset.date = date;
         
-        addGradeModal.style.display = 'block';
+        elements.addGradeModal.style.display = 'block';
     }
-    
-    // Обновленная функция для сохранения оценки
-function saveGrade() {
-    const studentId = addGradeForm.dataset.studentId;
-    const date = addGradeForm.dataset.date;
-    
-    const grade = {
-        value: document.getElementById('gradeValue').value,
-        date: date,
-        comment: document.getElementById('gradeComment').value || ''
-    };
-    
-    // Инициализация структур данных, если их нет
-    if (!gradesData[currentClass]) gradesData[currentClass] = {};
-    if (!gradesData[currentClass][currentSubject]) gradesData[currentClass][currentSubject] = {};
-    if (!gradesData[currentClass][currentSubject][studentId]) {
-        gradesData[currentClass][currentSubject][studentId] = [];
-    }
-    
-    // Удаление старой оценки на эту дату (если есть)
-    gradesData[currentClass][currentSubject][studentId] = 
-        gradesData[currentClass][currentSubject][studentId].filter(
-            g => g.date !== date
-        );
-    
-    // Добавление новой оценки
-    gradesData[currentClass][currentSubject][studentId].push(grade);
-    
-    // Сохранение в localStorage
-    saveGradesToStorage();
-    
-    // Закрытие модального окна
-    addGradeModal.style.display = 'none';
-    
-    // Обновление таблицы
-    updateGradesTable();
-}
 
-// Новая функция для сохранения оценок в localStorage
-function saveGradesToStorage() {
-    try {
-        localStorage.setItem('teacher_grades', JSON.stringify(gradesData));
-        return true;
-    } catch (error) {
-        console.error('Ошибка сохранения оценок:', error);
-        return false;
-    }
-}
-
-// Обновленная функция загрузки оценок
-function loadGrades() {
-    if (!currentClass || !currentSubject) {
-        return;
-    }
-    
-    try {
-        const savedGrades = localStorage.getItem('teacher_grades');
-        if (savedGrades) {
-            gradesData = JSON.parse(savedGrades);
-        } else {
-            gradesData = {};
-        }
+    // Сохранение оценки
+    function saveGrade() {
+        const studentId = elements.addGradeForm.dataset.studentId;
+        const date = elements.addGradeForm.dataset.date;
         
-        // Инициализация структуры данных, если ее нет
+        const grade = {
+            value: document.getElementById('gradeValue').value,
+            date: date,
+            comment: document.getElementById('gradeComment').value || ''
+        };
+        
+        // Инициализация структур данных
         if (!gradesData[currentClass]) gradesData[currentClass] = {};
-        if (!gradesData[currentClass][currentSubject]) {
-            gradesData[currentClass][currentSubject] = {};
+        if (!gradesData[currentClass][currentSubject]) gradesData[currentClass][currentSubject] = {};
+        if (!gradesData[currentClass][currentSubject][studentId]) {
+            gradesData[currentClass][currentSubject][studentId] = [];
         }
         
-        updateGradesTable();
-    } catch (error) {
-        console.error('Ошибка загрузки оценок:', error);
-        gradesData = {};
+        // Удаление старой оценки на эту дату
+        gradesData[currentClass][currentSubject][studentId] = 
+            gradesData[currentClass][currentSubject][studentId].filter(
+                g => g.date !== date
+            );
+        
+        // Добавление новой оценки
+        gradesData[currentClass][currentSubject][studentId].push(grade);
+        
+        // Сохранение в localStorage
+        localStorage.setItem('teacher_grades', JSON.stringify(gradesData));
+        
+        // Закрытие модального окна
+        elements.addGradeModal.style.display = 'none';
+        
+        // Обновление таблицы
+        const selectedClass = JSON.parse(localStorage.getItem('admin_classes'))
+            .find(classItem => classItem.id === currentClass);
+        if (selectedClass) {
+            loadStudents(selectedClass);
+        }
     }
-}
 
-// Обновленная функция для обновления таблицы оценок
-function updateGradesTable() {
-    if (!currentClass || !currentSubject) return;
-    
-    const selectedClass = JSON.parse(localStorage.getItem('admin_classes'))
-        .find(c => c.id === currentClass);
-    if (!selectedClass) return;
-    
-    const users = JSON.parse(localStorage.getItem('admin_users')) || [];
-    const students = selectedClass.students 
-        ? selectedClass.students.map(studentId => 
-            users.find(u => u.id == studentId && u.type === 'student'))
-            .filter(Boolean)
-        : [];
-    
-    renderStudentsTable(students);
-}
-    
     // Удаление оценки из модального окна
     function deleteGradeFromModal() {
-        const studentId = addGradeForm.dataset.studentId;
-        const date = addGradeForm.dataset.date;
+        const studentId = elements.addGradeForm.dataset.studentId;
+        const date = elements.addGradeForm.dataset.date;
         
         if (!confirm('Вы уверены, что хотите удалить эту оценку?')) {
             return;
         }
         
-        if (!gradesData[currentClass] || !gradesData[currentClass][currentSubject] || 
+        if (!gradesData[currentClass] || 
+            !gradesData[currentClass][currentSubject] || 
             !gradesData[currentClass][currentSubject][studentId]) {
             return;
         }
@@ -688,12 +567,16 @@ function updateGradesTable() {
         localStorage.setItem('teacher_grades', JSON.stringify(gradesData));
         
         // Закрытие модального окна
-        addGradeModal.style.display = 'none';
+        elements.addGradeModal.style.display = 'none';
         
         // Обновление таблицы
-        loadGrades();
+        const selectedClass = JSON.parse(localStorage.getItem('admin_classes'))
+            .find(classItem => classItem.id === currentClass);
+        if (selectedClass) {
+            loadStudents(selectedClass);
+        }
     }
-    
+
     // Удаление оценки по Ctrl+клик
     function deleteGrade(gradeCell) {
         const studentId = gradeCell.dataset.studentId;
@@ -703,7 +586,8 @@ function updateGradesTable() {
             return;
         }
         
-        if (!gradesData[currentClass] || !gradesData[currentClass][currentSubject] || 
+        if (!gradesData[currentClass] || 
+            !gradesData[currentClass][currentSubject] || 
             !gradesData[currentClass][currentSubject][studentId]) {
             return;
         }
@@ -718,9 +602,13 @@ function updateGradesTable() {
         localStorage.setItem('teacher_grades', JSON.stringify(gradesData));
         
         // Обновление таблицы
-        loadGrades();
+        const selectedClass = JSON.parse(localStorage.getItem('admin_classes'))
+            .find(classItem => classItem.id === currentClass);
+        if (selectedClass) {
+            loadStudents(selectedClass);
+        }
     }
-    
+
     // Экспорт оценок
     function exportGrades() {
         if (!currentClass || !currentSubject) {
@@ -729,7 +617,7 @@ function updateGradesTable() {
         }
         
         const classes = JSON.parse(localStorage.getItem('admin_classes')) || [];
-        const selectedClass = classes.find(c => c.id === currentClass);
+        const selectedClass = classes.find(classItem => classItem.id === currentClass);
         const users = JSON.parse(localStorage.getItem('admin_users')) || [];
         
         let csvContent = "ФИО;";
@@ -739,7 +627,7 @@ function updateGradesTable() {
         dateCols.forEach(col => {
             csvContent += `${col.textContent};`;
         });
-        csvContent += "\n";
+        csvContent += "Средний балл\n";
         
         // Данные по ученикам
         document.querySelectorAll('.student-row').forEach(row => {
@@ -750,7 +638,8 @@ function updateGradesTable() {
                 csvContent += `${cell.textContent || ''};`;
             });
             
-            csvContent += "\n";
+            const average = row.querySelector('.average-cell').textContent;
+            csvContent += `${average}\n`;
         });
         
         // Создание и скачивание файла
@@ -763,12 +652,12 @@ function updateGradesTable() {
         link.click();
         document.body.removeChild(link);
     }
-    
+
     // Печать журнала
     function printGrades() {
         window.print();
     }
-    
+
     // Загрузка расписания
     function loadSchedule() {
         // Здесь должна быть загрузка с сервера
@@ -787,12 +676,14 @@ function updateGradesTable() {
         
         renderSchedule();
     }
-    
+
     // Отображение расписания
     function renderSchedule() {
         if (!currentClass) return;
         
         const scheduleTable = document.getElementById('scheduleTable');
+        if (!scheduleTable) return;
+        
         scheduleTable.innerHTML = '';
         
         const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -830,132 +721,410 @@ function updateGradesTable() {
             scheduleTable.appendChild(dayRow);
         });
     }
-    
-    // Загрузка учебных материалов
-    function loadMaterials() {
-        // Здесь должна быть загрузка с сервера
-        // Для примера создаем тестовые данные
-        materialsData = [
-            {
-                id: 1,
-                title: 'Презентация по математике',
-                subject: 'mathematics',
-                class: '1А',
-                file: 'math_presentation.pdf',
-                date: '2023-10-15'
-            },
-            {
-                id: 2,
-                title: 'Тест по русскому языку',
-                subject: 'russian',
-                class: '1А',
-                file: 'russian_test.docx',
-                date: '2023-10-10'
-            }
-        ];
+
+    // Загрузка классов учителя
+    function loadTeacherClasses() {
+        const authData = JSON.parse(localStorage.getItem('auth')) || {};
+        const classes = JSON.parse(localStorage.getItem('admin_classes')) || [];
+        const users = JSON.parse(localStorage.getItem('admin_users')) || [];
         
-        renderMaterials();
+        // Находим классы, где текущий учитель является классным руководителем
+        const teacherClasses = classes.filter(classItem => {
+            return classItem.teacherId && users.some(user => 
+                user.id == classItem.teacherId && user.username === authData.username);
+        });
+        
+        renderTeacherClasses(teacherClasses, users);
     }
-    
-    // Отображение учебных материалов
-    function renderMaterials() {
-        materialsGrid.innerHTML = '';
+
+    // Отображение классов учителя
+    function renderTeacherClasses(classes, users) {
+        const classesList = document.getElementById('classesList');
+        if (!classesList) return;
         
-        if (materialsData.length === 0) {
-            materialsGrid.innerHTML = '<div class="no-data">Нет учебных материалов</div>';
+        if (classes.length === 0) {
+            classesList.innerHTML = '<div class="no-data">Вам не назначены классы</div>';
             return;
         }
         
-        materialsData.forEach(material => {
-            const materialCard = document.createElement('div');
-            materialCard.className = 'material-card';
-            materialCard.innerHTML = `
-                <div class="material-header">
-                    <h3>${material.title}</h3>
-                    <div class="material-meta">
-                        <span class="subject-badge">${getSubjectName(material.subject)}</span>
-                        <span>${material.class} класс</span>
+        classesList.innerHTML = classes.map(classItem => {
+            // Находим учеников класса
+            const students = classItem.students 
+                ? classItem.students.map(studentId => 
+                    users.find(user => user.id == studentId && user.type === 'student'))
+                    .filter(Boolean)
+                : [];
+            
+            return `
+                <div class="class-card">
+                    <h3>${classItem.name}</h3>
+                    <div class="students-list">
+                        ${students.length > 0 ? `
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ФИО</th>
+                                        <th>Логин</th>
+                                        <th>Телефон</th>
+                                        <th>Родители</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${students.map(student => `
+                                        <tr>
+                                            <td>${student.lastName} ${student.firstName} ${student.middleName || ''}</td>
+                                            <td>${student.username}</td>
+                                            <td>${student.phone || 'не указан'}</td>
+                                            <td>
+                                                ${formatParentsInfo(student.parents)}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p>В классе нет учеников</p>'}
                     </div>
                 </div>
-                <div class="material-footer">
-                    <a href="#" class="btn btn-outline download-btn" data-file="${material.file}">
-                        <i class="fas fa-download"></i> Скачать
-                    </a>
-                    <span class="material-date">${material.date}</span>
-                </div>
             `;
+        }).join('');
+    }
+
+    // Форматирование информации о родителях
+    function formatParentsInfo(parents) {
+        if (!parents) return 'не указаны';
+        
+        try {
+            const parentsData = parents.split(',');
+            let result = [];
             
-            materialsGrid.appendChild(materialCard);
-        });
+            parentsData.forEach(parent => {
+                const [type, name] = parent.split(':');
+                if (type && name) {
+                    result.push(`${type === 'mother' ? 'Мать' : 'Отец'}: ${name}`);
+                }
+            });
+            
+            return result.join('<br>');
+        } catch (e) {
+            return parents;
+        }
     }
-    
-    // Получение названия предмета по ключу
-    function getSubjectName(key) {
-        const subjects = {
-            'mathematics': 'Математика',
-            'russian': 'Русский язык',
-            'literature': 'Литература'
-        };
-        return subjects[key] || key;
+
+    // Инициализация раздела материалов
+    function initMaterialsSection() {
+        loadMaterials();
+        
+        // Обработчики событий
+        elements.addMaterialBtn.addEventListener('click', showAddMaterialModal);
+        elements.cancelMaterialBtn.addEventListener('click', closeMaterialModal);
+        elements.addMaterialForm.addEventListener('submit', saveMaterial);
+        
+        // Инициализация фильтров
+        initMaterialFilters();
+        
+        // Обработчики для фильтров
+        elements.materialsClassFilter.addEventListener('change', renderMaterials);
+        elements.materialsSubjectFilter.addEventListener('change', renderMaterials);
+        elements.materialsDateFilter.addEventListener('change', renderMaterials);
     }
-    
-    // Открытие модального окна для добавления материала
-    function openAddMaterialModal() {
-        const modal = document.getElementById('addMaterialModal');
-        const form = document.getElementById('addMaterialForm');
+
+    // Загрузка учебных материалов
+    function loadMaterials() {
+        const savedMaterials = localStorage.getItem('teacher_materials');
+        if (savedMaterials) {
+            materialsData = JSON.parse(savedMaterials);
+        } else {
+            // Тестовые данные, если нет сохраненных
+            materialsData = [
+                {
+                    id: 1,
+                    date: new Date().toISOString().split('T')[0],
+                    class: '1А',
+                    subject: 'mathematics',
+                    topic: 'Алгебраические уравнения',
+                    homework: 'Стр. 45, №1-5',
+                    notes: 'Для самостоятельного изучения',
+                    file: 'math_presentation.pdf'
+                },
+                {
+                    id: 2,
+                    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+                    class: '1Б',
+                    subject: 'russian',
+                    topic: 'Части речи',
+                    homework: 'Упражнение 23',
+                    notes: 'Повторить правила',
+                    file: 'russian_test.docx'
+                }
+            ];
+            localStorage.setItem('teacher_materials', JSON.stringify(materialsData));
+        }
+        renderMaterials();
+    }
+
+    // Инициализация фильтров материалов
+    function initMaterialFilters() {
+        // Очистка фильтров
+        elements.materialsClassFilter.innerHTML = '<option value="">Все классы</option>';
+        elements.materialsSubjectFilter.innerHTML = '<option value="">Все предметы</option>';
         
-        // Заполнение списка предметов
-        const subjectSelect = document.getElementById('materialSubject');
-        subjectSelect.innerHTML = '';
-        
-        const subjects = [
-            'Математика', 'Русский язык', 'Литература', 'Иностранный язык'
-        ];
-        
-        subjects.forEach(subj => {
-            const option = document.createElement('option');
-            option.value = subj.toLowerCase().replace(/\s+/g, '_');
-            option.textContent = subj;
-            subjectSelect.appendChild(option);
-        });
-        
-        // Заполнение списка классов
-        const classSelect = document.getElementById('materialClass');
-        classSelect.innerHTML = '';
-        
+        // Заполнение классов
         const classes = JSON.parse(localStorage.getItem('admin_classes')) || [];
         classes.forEach(cls => {
             const option = document.createElement('option');
             option.value = cls.id;
             option.textContent = cls.name;
-            classSelect.appendChild(option);
+            elements.materialsClassFilter.appendChild(option);
         });
         
-        // Обработчик отправки формы
-        form.onsubmit = function(e) {
-            e.preventDefault();
-            
-            const newMaterial = {
-                id: materialsData.length + 1,
-                title: document.getElementById('materialTitle').value,
-                subject: document.getElementById('materialSubject').value,
-                class: document.getElementById('materialClass').value,
-                file: document.getElementById('materialFile').files[0]?.name || 'file',
-                date: new Date().toISOString().split('T')[0]
-            };
-            
-            materialsData.push(newMaterial);
-            localStorage.setItem('teacher_materials', JSON.stringify(materialsData));
-            
-            modal.style.display = 'none';
-            renderMaterials();
+        // Заполнение предметов
+        const defaultSubjects = [
+            'Математика', 'Русский язык', 'Литература', 'Иностранный язык',
+            'История', 'Обществознание', 'География', 'Биология',
+            'Физика', 'Химия', 'Информатика', 'Физкультура',
+            'Технология', 'ИЗО', 'Музыка', 'ОБЖ'
+        ];
+        
+        const subjects = AdminCore.getSubjects ? AdminCore.getSubjects() : defaultSubjects;
+        subjects.forEach(subject => {
+            const option = document.createElement('option');
+            option.value = subject.toLowerCase().replace(/\s+/g, '_');
+            option.textContent = subject;
+            elements.materialsSubjectFilter.appendChild(option);
+        });
+    }
+
+    // Отображение учебных материалов
+    function renderMaterials() {
+        const classFilter = elements.materialsClassFilter.value;
+        const subjectFilter = elements.materialsSubjectFilter.value;
+        const dateFilter = elements.materialsDateFilter.value;
+        
+        // Фильтрация материалов
+        const filteredMaterials = materialsData.filter(material => {
+            if (classFilter && material.class !== classFilter) return false;
+            if (subjectFilter && material.subject !== subjectFilter) return false;
+            if (dateFilter && material.date !== dateFilter) return false;
+            return true;
+        });
+        
+        // Обновление таблицы
+        elements.materialsTableBody.innerHTML = filteredMaterials.map(material => `
+            <tr>
+                <td>${formatDate(material.date)}</td>
+                <td>${material.class}</td>
+                <td>${getSubjectName(material.subject)}</td>
+                <td>${material.topic}</td>
+                <td>${material.homework || '-'}</td>
+                <td>${material.notes || '-'}</td>
+                <td class="action-buttons">
+                    <button class="btn btn-sm btn-edit edit-material" data-id="${material.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-material" data-id="${material.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        // Добавляем обработчики событий для кнопок
+        document.querySelectorAll('.edit-material').forEach(btn => {
+            btn.addEventListener('click', () => editMaterial(btn.dataset.id));
+        });
+        
+        document.querySelectorAll('.delete-material').forEach(btn => {
+            btn.addEventListener('click', () => deleteMaterial(btn.dataset.id));
+        });
+    }
+
+    // Получение названия предмета по ключу
+    function getSubjectName(key) {
+        const subjects = {
+            'mathematics': 'Математика',
+            'russian': 'Русский язык',
+            'literature': 'Литература',
+            'foreign_language': 'Иностранный язык',
+            'history': 'История',
+            'social_studies': 'Обществознание',
+            'geography': 'География',
+            'biology': 'Биология',
+            'physics': 'Физика',
+            'chemistry': 'Химия',
+            'informatics': 'Информатика',
+            'physical_education': 'Физкультура',
+            'technology': 'Технология',
+            'art': 'ИЗО',
+            'music': 'Музыка',
+            'safety': 'ОБЖ'
+        };
+        return subjects[key] || key;
+    }
+
+    // Форматирование даты
+    function formatDate(dateString) {
+        if (!dateString) return '';
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        return new Date(dateString).toLocaleDateString('ru-RU', options);
+    }
+
+    // Показать модальное окно для добавления/редактирования материала
+    function showAddMaterialModal() {
+        currentMaterial = null;
+        elements.materialModalTitle.textContent = 'Добавить учебный материал';
+        elements.addMaterialForm.reset();
+        elements.materialId.value = '';
+        elements.materialFilePreview.innerHTML = '';
+        
+        // Заполняем классы
+        elements.materialClass.innerHTML = '<option value="" disabled selected>Выберите класс</option>';
+        const classes = JSON.parse(localStorage.getItem('admin_classes')) || [];
+        classes.forEach(cls => {
+            const option = document.createElement('option');
+            option.value = cls.id;
+            option.textContent = cls.name;
+            elements.materialClass.appendChild(option);
+        });
+        
+        // Заполняем предметы
+        elements.materialSubject.innerHTML = '<option value="" disabled selected>Выберите предмет</option>';
+        const defaultSubjects = [
+            'Математика', 'Русский язык', 'Литература', 'Иностранный язык',
+            'История', 'Обществознание', 'География', 'Биология',
+            'Физика', 'Химия', 'Информатика', 'Физкультура',
+            'Технология', 'ИЗО', 'Музыка', 'ОБЖ'
+        ];
+        
+        const subjects = AdminCore.getSubjects ? 
+            AdminCore.getSubjects().sort((a, b) => a.localeCompare(b, 'ru')) : 
+            defaultSubjects;
+        
+        subjects.forEach(subject => {
+            const option = document.createElement('option');
+            option.value = subject.toLowerCase().replace(/\s+/g, '_');
+            option.textContent = subject;
+            elements.materialSubject.appendChild(option);
+        });
+        
+        // Устанавливаем текущую дату
+        elements.materialDate.value = new Date().toISOString().split('T')[0];
+        
+        // Показываем модальное окно
+        elements.addMaterialModal.style.display = 'block';
+    }
+
+    // Редактирование материала
+    function editMaterial(id) {
+        currentMaterial = materialsData.find(m => m.id == id);
+        if (!currentMaterial) return;
+        
+        elements.materialModalTitle.textContent = 'Редактировать материал';
+        elements.materialId.value = currentMaterial.id;
+        elements.materialDate.value = currentMaterial.date;
+        elements.materialClass.value = currentMaterial.class;
+        elements.materialSubject.value = currentMaterial.subject;
+        elements.materialTopic.value = currentMaterial.topic;
+        elements.materialHomework.value = currentMaterial.homework || '';
+        elements.materialNotes.value = currentMaterial.notes || '';
+        
+        // Превью файла
+        elements.materialFilePreview.innerHTML = '';
+        if (currentMaterial.file) {
+            elements.materialFilePreview.innerHTML = `
+                <div class="file-preview">
+                    <i class="fas fa-file"></i>
+                    <span>${typeof currentMaterial.file === 'string' ? currentMaterial.file : currentMaterial.file.name}</span>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeMaterialFile()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Показываем модальное окно
+        elements.addMaterialModal.style.display = 'block';
+    }
+
+    // Удаление файла из материала
+    function removeMaterialFile() {
+        if (currentMaterial) {
+            currentMaterial.file = null;
+        }
+        elements.materialFilePreview.innerHTML = '';
+    }
+
+    // Закрытие модального окна
+    function closeMaterialModal() {
+        elements.addMaterialModal.style.display = 'none';
+        currentMaterial = null;
+    }
+
+    // Сохранение материала
+    function saveMaterial(e) {
+        e.preventDefault();
+        
+        const id = elements.materialId.value;
+        const fileInput = elements.materialFile;
+        
+        const materialData = {
+            id: id || Date.now().toString(),
+            date: elements.materialDate.value,
+            class: elements.materialClass.value,
+            subject: elements.materialSubject.value,
+            topic: elements.materialTopic.value,
+            homework: elements.materialHomework.value || null,
+            notes: elements.materialNotes.value || null,
+            file: null
         };
         
-        modal.style.display = 'block';
+        // Обработка файла
+        if (fileInput.files && fileInput.files[0]) {
+            materialData.file = {
+                name: fileInput.files[0].name,
+                size: fileInput.files[0].size,
+                type: fileInput.files[0].type
+            };
+        } else if (currentMaterial && currentMaterial.file) {
+            materialData.file = currentMaterial.file;
+        }
+        
+        // Сохранение материала
+        if (id) {
+            // Обновление существующего материала
+            const index = materialsData.findIndex(m => m.id == id);
+            if (index !== -1) {
+                materialsData[index] = materialData;
+            }
+        } else {
+            // Добавление нового материала
+            materialsData.push(materialData);
+        }
+        
+        // Сохранение в localStorage
+        localStorage.setItem('teacher_materials', JSON.stringify(materialsData));
+        
+        // Обновление интерфейса
+        renderMaterials();
+        closeMaterialModal();
     }
-    
-    // Если страница уже загружена
-    if (document.readyState === 'complete') {
-        initApp();
+
+    // Удаление материала
+    function deleteMaterial(id) {
+        if (!confirm('Вы уверены, что хотите удалить этот материал?')) return;
+        
+        materialsData = materialsData.filter(m => m.id != id);
+        localStorage.setItem('teacher_materials', JSON.stringify(materialsData));
+        renderMaterials();
     }
+
+    // Выход из системы
+    function logout() {
+        if (confirm('Вы уверены, что хотите выйти из системы?')) {
+            localStorage.removeItem('auth');
+            window.location.href = 'index.html';
+        }
+    }
+
+    // Запускаем приложение
+    initApp();
 });
